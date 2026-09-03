@@ -1,0 +1,206 @@
+// Gains — schema for a single-user workout + macro tracker.
+//
+// Two conventions worth knowing before you edit this file:
+//
+// 1. `userId` exists on every top-level row so auth can be added later without a
+//    migration that touches data. It is NOT nullable: it defaults to "local".
+//    Nullable would break the unique indexes below, because SQLite treats NULLs
+//    as distinct — two DailyLogs with (NULL, same date) would both be allowed.
+//
+// 2. Exercise metadata is NEVER stored here. `WorkoutExercise.exerciseSlug` is a
+//    foreign key into the @bryllim/workout-guide package; name, muscle, equipment
+//    and illustration frames are resolved at render time via src/lib/exercises.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// ---------------------------------------------------------------- workouts
+
+model Workout {
+  id            String    @id @default(cuid())
+  userId        String    @default("local")
+  /// Calendar day the workout belongs to, stored as UTC midnight.
+  date          DateTime
+  name          String?
+  notes         String?
+  /// Which routine template this was generated from, e.g. "ppl" / "push".
+  /// Null for a freestyle workout.
+  routineKey    String?
+  routineDayKey String?
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  exercises WorkoutExercise[]
+
+  @@index([userId, date])
+}
+
+model WorkoutExercise {
+  id            String  @id @default(cuid())
+  workoutId     String
+  /// Slug from @bryllim/workout-guide, e.g. "bench-press". Not validated by the
+  /// DB — src/lib/exercises.ts returns null for slugs the package no longer has.
+  exerciseSlug  String
+  position      Int
+  notes         String?
+  /// Exercises sharing a supersetGroup within one workout are performed
+  /// back-to-back with no rest between them. Null = a normal straight set.
+  supersetGroup Int?
+  /// Target set/rep prescription carried over from a routine template, shown as
+  /// a hint while logging. Free text so "8-12" and "AMRAP" both work.
+  targetSets    Int?
+  targetReps    String?
+
+  workout Workout       @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  sets    ExerciseSet[]
+
+  @@index([workoutId])
+}
+
+/// Named ExerciseSet rather than Set to avoid colliding with the JS built-in in
+/// generated client types.
+model ExerciseSet {
+  id                String @id @default(cuid())
+  workoutExerciseId String
+  position          Int
+
+  /// weight_reps / bodyweight_reps / assisted_bodyweight
+  reps   Int?
+  weight Float?
+  /// "kg" | "lb" — stored per set so historical rows stay truthful if you switch.
+  unit   String @default("kg")
+  rpe    Float?
+
+  /// duration + distance_duration exercise types
+  durationSec Int?
+  distanceM   Float?
+
+  completed Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([workoutExerciseId])
+}
+
+/// ---------------------------------------------------------------- macros
+
+/// Provenance of a FoodItem's macros. Surfaced in the UI so an estimate is never
+/// mistaken for a label value.
+///  OFFICIAL — publisher's own nutrition page/PDF (chain or brand)
+///  LABEL    — nutrition facts panel of a packaged product
+///  ESTIMATE — cooked dish, inherently variable; rounded on purpose
+///  USER     — entered by hand via the custom-food form
+model FoodItem {
+  id       String  @id @default(cuid())
+  userId   String  @default("local")
+  name     String
+  brand    String?
+  /// STAPLE | PACKAGED | HOME_COOKED | FASTFOOD | CUSTOM
+  category String
+
+  /// Where the numbers came from. `source` is a URL or citation string.
+  sourceType String  @default("USER")
+  source     String?
+  /// True for anything rounded/derived rather than read off a published figure.
+  isEstimate Boolean @default(false)
+
+  /// Macros are per one serving of (servingSize servingUnit).
+  calories Float
+  proteinG Float
+  carbsG   Float
+  fatG     Float
+
+  servingSize  Float
+  servingUnit  String
+  /// Human label for the serving, e.g. "1 cup cooked", "1 piece".
+  servingLabel String?
+
+  /// Seeded rows carry a stable key so `prisma db seed` can upsert instead of
+  /// duplicating on every run. NULL for user-created foods.
+  seedKey String? @unique
+
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries LogEntry[]
+
+  @@index([userId, category])
+  @@index([name])
+}
+
+model DailyLog {
+  id     String   @id @default(cuid())
+  userId String   @default("local")
+  /// Calendar day, stored as UTC midnight.
+  date   DateTime
+  notes  String?
+
+  entries LogEntry[]
+
+  @@unique([userId, date])
+}
+
+model LogEntry {
+  id         String   @id @default(cuid())
+  dailyLogId String
+  foodItemId String
+  /// Multiplier applied to the FoodItem's serving, e.g. 1.5 = one and a half servings.
+  quantity   Float    @default(1)
+  /// BREAKFAST | LUNCH | DINNER | SNACK
+  mealType   String   @default("SNACK")
+  loggedAt   DateTime @default(now())
+
+  dailyLog DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  foodItem FoodItem @relation(fields: [foodItemId], references: [id], onDelete: Restrict)
+
+  @@index([dailyLogId])
+  @@index([foodItemId])
+}
+
+/// ---------------------------------------------------------------- settings
+
+/// Single row keyed by userId. Holds macro targets and unit preference.
+model Settings {
+  id     String @id @default(cuid())
+  userId String @unique @default("local")
+
+  calorieTarget Float?
+  proteinTarget Float?
+  carbsTarget   Float?
+  fatTarget     Float?
+
+  /// "kg" | "lb" — default for new sets.
+  weightUnit String @default("kg")
+
+  /// Seconds to count down between sets. 0 disables the timer.
+  restTimerSec Int @default(120)
+
+  /// Routine template currently being followed, e.g. "ppl". Null = freestyle.
+  activeRoutineKey String?
+
+  // ---- body metrics, used to compute a macro plan ----
+  heightCm      Float?
+  weightKg      Float?
+  age           Int?
+  /// "male" | "female". Required by the Mifflin-St Jeor equation; when it is
+  /// missing we fall back to a sex-neutral average and say so in the UI.
+  sex           String?
+  /// sedentary | light | moderate | active | very_active
+  activityLevel String  @default("moderate")
+  /// cut | maintain | bulk
+  goal          String  @default("maintain")
+  /// OMAD | TMAD | THREE — how the day's macros get split into meals.
+  mealPattern   String  @default("THREE")
+
+  updatedAt DateTime @updatedAt
+}

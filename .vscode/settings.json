@@ -1,0 +1,15 @@
+{
+  // This is a Next.js/TypeScript project with no Python. The Python extension
+  // defaults python.envFile to ${workspaceFolder}/.env, finds the .env that
+  // Prisma created for DATABASE_URL, and then prompts to enable
+  // python.terminal.useEnvFile.
+  //
+  // Pointing it at nothing silences that prompt. We deliberately do NOT enable
+  // terminal injection: it would push DATABASE_URL — and DATABASE_AUTH_TOKEN
+  // once you deploy to Turso — into every integrated terminal, for tooling this
+  // project does not use.
+  //
+  // Nothing here affects the app: Prisma and the seed load .env themselves via
+  // `import "dotenv/config"`, and Next loads it natively.
+  "python.envFile": ""
+}
