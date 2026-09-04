@@ -113,11 +113,14 @@ export default async function WorkoutPage({ params }: PageProps<'/workout/[id]'>
                   )}
                 >
                   <CardContent className="space-y-4">
-                    <div className="flex items-start gap-4">
+                    {/* Tight gaps and a small illustration on phones: at 375px
+                        every pixel here comes out of the exercise name, which
+                        was wrapping onto three lines. */}
+                    <div className="flex items-start gap-3 sm:gap-4">
                       <ExerciseIllustration
                         exercise={exercise}
                         animate
-                        className="w-14 shrink-0 sm:w-20"
+                        className="w-12 shrink-0 sm:w-20"
                         sizes="80px"
                       />
 
