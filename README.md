@@ -2,17 +2,21 @@
 
 A single-user PWA for logging workouts and macros. Workout illustrations come
 from [`@bryllim/workout-guide`](https://bryllim.github.io/workout-guide/); the
-food database is seeded with Philippine/Cebu foods.
+food database is seeded with Philippine/Cebu foods. Data lives in
+Prisma Postgres.
 
 ## Running it
 
 ```bash
-npm install          # also copies illustrations into public/ and generates the Prisma client
-cp .env.example .env
-npm run db:migrate   # creates dev.db
-npm run db:seed      # loads 166 foods
+npm install                 # copies illustrations into public/, generates the Prisma client
+npx prisma postgres link    # provisions/links a Prisma Postgres DB and writes DATABASE_URL to .env
+npm run db:migrate          # applies the schema
+npm run db:seed             # loads 166 foods
 npm run dev
 ```
+
+No local database daemon is needed — Prisma Postgres is hosted, so dev and
+production talk to the same kind of database.
 
 Then open http://localhost:3000.
 
@@ -20,10 +24,10 @@ Then open http://localhost:3000.
 |---|---|
 | `npm run dev` | dev server (Turbopack; service worker disabled) |
 | `npm run build` | production build (webpack — see *Why webpack* below) |
-| `npm run db:migrate` | apply schema changes |
+| `npm run db:migrate` | create + apply a migration (dev) |
 | `npm run db:seed` | upsert the seed foods (safe to re-run) |
 | `npm run db:studio` | browse the database |
-| `npm run db:reset` | drop and rebuild from migrations |
+| `npm run db:reset` | drop and rebuild from migrations, then re-seed |
 | `npm run check:guides` | verify routine slugs + guide coverage against the package |
 
 ## What it does
@@ -43,7 +47,7 @@ Then open http://localhost:3000.
 
 ```
 prisma/
-  schema.prisma          Workout / WorkoutExercise / ExerciseSet
+  schema.prisma          Postgres. Workout / WorkoutExercise / ExerciseSet
                          FoodItem / DailyLog / LogEntry / Settings
   seed/
     types.ts             the SeedFood shape and the provenance contract
@@ -66,7 +70,7 @@ src/
                          lower-body · glutes · core · conditioning)
     routines.ts          the four splits and their days
     nutrition.ts         BMR/TDEE/macro maths and meal suggestions
-    db.ts                Prisma client (libSQL adapter)
+    db.ts                Prisma client (lazy; @prisma/adapter-pg)
     queries.ts           read helpers        actions/  writes (server actions)
   stores/
     rest-timer.ts        zustand; holds a deadline, not a countdown
@@ -87,24 +91,35 @@ Two conventions worth knowing:
   coverage across all 302 exercises.
 - **`userId` defaults to `"local"` and is not nullable.** Auth can be added by
   replacing `currentUserId()` in `src/lib/user.ts`. It is non-null because
-  SQLite treats NULLs as distinct in unique indexes, which would let
+  Postgres treats NULLs as distinct in unique indexes, which would let
   `@@unique([userId, date])` pass duplicate `DailyLog` rows for one day.
 
 ## Deploying to Vercel
 
-**A `file:` SQLite database will not survive on Vercel.** The filesystem is
-ephemeral and not shared between invocations, so every write is lost on the next
-deploy. `src/lib/db.ts` warns about this at runtime.
-
-The app uses the libSQL driver adapter, which speaks both local files and hosted
-Turso, so moving over is environment variables only — no schema or code change:
+The database is **Prisma Postgres**, so there is nothing filesystem-bound to
+break on a serverless host. Set these in the Vercel dashboard before the first
+deploy:
 
 ```
-DATABASE_URL=libsql://your-db.turso.io
-DATABASE_AUTH_TOKEN=your-token
+DATABASE_URL=postgres://USER:PASSWORD@pooled.db.prisma.io:5432/postgres?sslmode=require
 ```
 
-Apply migrations against the hosted database before the first deploy.
+Use the **pooled** endpoint (`pooled.db.prisma.io`) in production. Serverless
+invocations scale out horizontally, and a pool in front of the database is what
+stops them exhausting connections. Direct TCP (`db.prisma.io`) is fine locally.
+
+Apply migrations against the hosted database before the first deploy:
+
+```
+npx prisma migrate deploy
+```
+
+The build itself does not need a database. `src/lib/db.ts` constructs the
+client lazily, on first query rather than on import, because `next build` loads
+every page module to collect its config — eager construction made the whole
+build fail with "Failed to collect page data for /plan" when `DATABASE_URL` was
+absent. Every page that reads the database is `force-dynamic`, so only requests
+need a connection.
 
 ### Why webpack for the build
 

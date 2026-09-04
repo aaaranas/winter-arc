@@ -1,57 +1,65 @@
 import { PrismaClient } from '@/generated/prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 /**
- * Single Prisma client for the app.
+ * Single Prisma client for the app, backed by Prisma Postgres.
  *
- * We use the libSQL adapter for every environment rather than
- * better-sqlite3, because one client handles both cases:
+ *   local dev   DATABASE_URL="postgres://...@db.prisma.io:5432/postgres?sslmode=require"
+ *   production  the POOLED endpoint (pooled.db.prisma.io), set in Vercel
  *
- *   local dev   DATABASE_URL="file:./dev.db"
- *   production  DATABASE_URL="libsql://<db>.turso.io"
- *               DATABASE_AUTH_TOKEN="<token>"
+ * Why @prisma/adapter-pg rather than the @prisma/adapter-ppg serverless driver:
+ * Next.js server components run on Vercel's Node.js runtime, not the edge, and
+ * Prisma's guidance is to prefer adapter-pg there. Serverless concurrency is
+ * handled by pointing production at Prisma Postgres's pooled endpoint rather
+ * than by swapping drivers — a pool in front of the database, instead of a
+ * different client in front of the pool.
  *
- * That keeps `provider = "sqlite"` and the schema unchanged when you deploy.
- *
- * IMPORTANT for Vercel: a `file:` URL will NOT persist there. Vercel's
- * filesystem is ephemeral and not shared between invocations, so every write
- * is lost on redeploy. Point DATABASE_URL at a hosted libSQL database (Turso)
- * before deploying, or the app will silently lose data.
+ * The client is created LAZILY, on the first query rather than on import.
+ * `next build` loads every page module to collect its config, so validating the
+ * connection at import time made the whole build fail with
+ * "Failed to collect page data for /plan" when DATABASE_URL was absent. Every
+ * page that touches the database is `force-dynamic`, so the build genuinely
+ * does not need one — only requests do.
  */
 
-const url = process.env.DATABASE_URL;
-
-if (!url) {
-  throw new Error(
-    'DATABASE_URL is not set. Copy .env.example to .env for local development.',
-  );
-}
-
-if (process.env.NODE_ENV === 'production' && url.startsWith('file:')) {
-  console.warn(
-    '[db] DATABASE_URL is a local file in production. On a serverless host ' +
-      '(Vercel) this storage is ephemeral and writes will be lost. ' +
-      'Use a libsql:// URL instead.',
-  );
-}
-
 function createPrismaClient() {
-  const adapter = new PrismaLibSql({
-    url: url!,
-    authToken: process.env.DATABASE_AUTH_TOKEN,
-  });
+  const connectionString = process.env.DATABASE_URL;
 
-  return new PrismaClient({ adapter });
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL is not set. Copy .env.example to .env for local development, ' +
+        'or set it in your host’s environment variables for production.',
+    );
+  }
+
+  return new PrismaClient({
+    adapter: new PrismaPg({ connectionString }),
+  });
 }
 
 // Next.js dev server hot-reloads modules, which would otherwise open a new
 // connection pool on every edit until the process runs out of handles.
 const globalForPrisma = globalThis as unknown as {
-  prisma: ReturnType<typeof createPrismaClient> | undefined;
+  prisma: PrismaClient | undefined;
 };
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = db;
+function getClient(): PrismaClient {
+  if (!globalForPrisma.prisma) {
+    globalForPrisma.prisma = createPrismaClient();
+  }
+  return globalForPrisma.prisma;
 }
+
+/**
+ * Behaves exactly like a PrismaClient, but defers construction until the first
+ * property access — `db.workout.findMany(...)`, say. Importing this module does
+ * nothing, which is what keeps the build database-free.
+ */
+export const db: PrismaClient = new Proxy({} as PrismaClient, {
+  get(_target, property, receiver) {
+    const client = getClient();
+    const value = Reflect.get(client, property, receiver);
+    // Methods like $transaction must stay bound to the real client.
+    return typeof value === 'function' ? value.bind(client) : value;
+  },
+});

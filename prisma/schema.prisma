@@ -4,8 +4,9 @@
 //
 // 1. `userId` exists on every top-level row so auth can be added later without a
 //    migration that touches data. It is NOT nullable: it defaults to "local".
-//    Nullable would break the unique indexes below, because SQLite treats NULLs
-//    as distinct — two DailyLogs with (NULL, same date) would both be allowed.
+//    Nullable would break the unique indexes below: Postgres (like SQLite)
+//    treats NULLs as distinct in a unique index, so two DailyLogs with
+//    (NULL, same date) would both be allowed.
 //
 // 2. Exercise metadata is NEVER stored here. `WorkoutExercise.exerciseSlug` is a
 //    foreign key into the @bryllim/workout-guide package; name, muscle, equipment
@@ -17,7 +18,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 /// ---------------------------------------------------------------- workouts

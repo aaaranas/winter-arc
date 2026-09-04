@@ -1,18 +1,18 @@
 import 'dotenv/config';
 import { PrismaClient } from '../../src/generated/prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaPg } from '@prisma/adapter-pg';
 import { stapleFoods } from './foods/staples';
 import { packagedFoods } from './foods/packaged';
 import { homeCookedFoods } from './foods/home-cooked';
 import { fastfoodFoods } from './foods/fastfood';
 import type { SeedFood } from './types';
 
-const url = process.env.DATABASE_URL;
-if (!url) throw new Error('DATABASE_URL is not set. Copy .env.example to .env.');
+const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+  throw new Error('DATABASE_URL is not set. Copy .env.example to .env.');
+}
 
-const prisma = new PrismaClient({
-  adapter: new PrismaLibSql({ url, authToken: process.env.DATABASE_AUTH_TOKEN }),
-});
+const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
 
 const allFoods: SeedFood[] = [
   ...stapleFoods,
