@@ -1,11 +1,12 @@
 import 'server-only';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
+import { visibleFoods } from '@/lib/food-scope';
 import { fromDayKey, toDayStart } from '@/lib/dates';
 import { scale, sum, type Macros } from '@/lib/macros';
 
 export async function getSettings() {
-  const userId = currentUserId();
+  const userId = await requireUserId();
   return db.settings.findUnique({ where: { userId } });
 }
 
@@ -24,7 +25,7 @@ export async function getWorkout(id: string) {
 /** The most recent workout that hasn't been finished yet, if any. */
 export async function getActiveWorkout() {
   return db.workout.findFirst({
-    where: { userId: currentUserId(), finishedAt: null },
+    where: { userId: await requireUserId(), finishedAt: null },
     orderBy: { startedAt: 'desc' },
     include: {
       exercises: {
@@ -37,7 +38,7 @@ export async function getActiveWorkout() {
 
 export async function getWorkoutHistory(limit = 50) {
   return db.workout.findMany({
-    where: { userId: currentUserId() },
+    where: { userId: await requireUserId() },
     orderBy: [{ date: 'desc' }, { startedAt: 'desc' }],
     take: limit,
     include: {
@@ -52,7 +53,7 @@ export async function getWorkoutHistory(limit = 50) {
 export async function getTodayWorkouts() {
   const today = toDayStart(new Date());
   return db.workout.findMany({
-    where: { userId: currentUserId(), date: today },
+    where: { userId: await requireUserId(), date: today },
     orderBy: { startedAt: 'desc' },
     include: { exercises: { include: { sets: true } } },
   });
@@ -64,7 +65,7 @@ export type DailyLogWithTotals = {
 };
 
 export async function getDailyLogEntries(dayKey: string) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
   const date = fromDayKey(dayKey);
 
   const log = await db.dailyLog.findUnique({
@@ -89,13 +90,12 @@ export async function getDayTotals(dayKey: string): Promise<DailyLogWithTotals> 
  * size, and it keeps the query in the database rather than loading every row.
  */
 export async function searchFoods(query: string, category?: string) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
   const q = query.trim().toLowerCase();
 
   const foods = await db.foodItem.findMany({
     where: {
-      userId,
-      archived: false,
+      ...visibleFoods(userId),
       ...(category && category !== 'ALL' ? { category } : {}),
     },
     orderBy: [{ name: 'asc' }],
@@ -114,7 +114,7 @@ export async function searchFoods(query: string, category?: string) {
 }
 
 export async function getRecentFoods(limit = 8) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
   const entries = await db.logEntry.findMany({
     where: { dailyLog: { userId } },
     orderBy: { loggedAt: 'desc' },
@@ -171,7 +171,7 @@ export function estimate1Rm(
  */
 export async function getPersonalRecords(): Promise<Map<string, PersonalRecord>> {
   const sets = await db.exerciseSet.findMany({
-    where: { workoutExercise: { workout: { userId: currentUserId() } } },
+    where: { workoutExercise: { workout: { userId: await requireUserId() } } },
     include: { workoutExercise: { select: { exerciseSlug: true } } },
     orderBy: { createdAt: 'asc' },
   });

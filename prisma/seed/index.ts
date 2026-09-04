@@ -22,9 +22,12 @@ const allFoods: SeedFood[] = [
 ];
 
 async function main() {
-  // Upsert on seedKey so re-running the seed corrects values in place instead
-  // of duplicating rows — and never clobbers foods you added yourself, which
-  // have a null seedKey.
+  // Seeded foods are GLOBAL: they carry no userId, so every account sees the
+  // same catalogue rather than getting 166 copies at signup.
+  //
+  // Upsert on seedKey so re-running corrects values in place instead of
+  // duplicating — and never touches foods a user created, which have no
+  // seedKey.
   for (const food of allFoods) {
     const { seedKey, ...data } = food;
     await prisma.foodItem.upsert({
@@ -34,12 +37,8 @@ async function main() {
     });
   }
 
-  // One settings row for the hardcoded local user.
-  await prisma.settings.upsert({
-    where: { userId: 'local' },
-    create: { userId: 'local' },
-    update: {},
-  });
+  // No Settings row is seeded any more: settings belong to a real account and
+  // are created lazily the first time someone saves theirs.
 
   const byProvenance = allFoods.reduce<Record<string, number>>((acc, f) => {
     acc[f.sourceType] = (acc[f.sourceType] ?? 0) + 1;

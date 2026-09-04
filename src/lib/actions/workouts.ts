@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
 import { toDayStart } from '@/lib/dates';
 import { getExercise } from '@/lib/exercises';
 import { getRoutineDay, supersetGroupFor } from '@/lib/routines';
@@ -14,7 +14,7 @@ export async function startWorkout(formData: FormData) {
 
   const workout = await db.workout.create({
     data: {
-      userId: currentUserId(),
+      userId: await requireUserId(),
       date: toDayStart(now),
       name,
       startedAt: now,
@@ -126,7 +126,7 @@ export async function startRoutineDay(routineKey: string, dayKey: string) {
 
   const workout = await db.workout.create({
     data: {
-      userId: currentUserId(),
+      userId: await requireUserId(),
       date: toDayStart(now),
       name: `${routine.name} — ${day.name}`,
       routineKey: routine.key,

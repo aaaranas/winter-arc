@@ -9,6 +9,8 @@ import { AppSidebar } from '@/components/layout/app-sidebar';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
+import { SignOutButton } from '@/components/auth/sign-out-button';
+import { getSession } from '@/lib/user';
 import { Logo } from '@/components/layout/logo';
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] });
@@ -41,7 +43,12 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export default function RootLayout({ children }: LayoutProps<'/'>) {
+export default async function RootLayout({ children }: LayoutProps<'/'>) {
+  // Signed-out screens (sign-in, sign-up, verification, password reset) render
+  // their own centred shell, so the app chrome must not wrap them.
+  const session = await getSession();
+  const user = session?.user ?? null;
+
   return (
     <html
       lang="en"
@@ -55,8 +62,11 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           enableSystem={false}
           disableTransitionOnChange
         >
+          {!user ? (
+            children
+          ) : (
           <div className="flex min-h-dvh">
-            <AppSidebar />
+            <AppSidebar userName={user.name || user.email} />
 
             <div className="flex min-w-0 flex-1 flex-col">
               {/* Phone/tablet header. The sidebar carries the branding and the
@@ -87,6 +97,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     </Link>
                   </Button>
                   <ThemeToggle />
+                  <SignOutButton compact />
                 </div>
               </header>
 
@@ -96,8 +107,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
               </main>
             </div>
           </div>
+          )}
 
-          <AppNav />
+          {user ? <AppNav /> : null}
           <Toaster position="top-center" />
         </ThemeProvider>
       </body>

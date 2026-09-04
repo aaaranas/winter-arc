@@ -2,11 +2,12 @@
 //
 // Two conventions worth knowing before you edit this file:
 //
-// 1. `userId` exists on every top-level row so auth can be added later without a
-//    migration that touches data. It is NOT nullable: it defaults to "local".
-//    Nullable would break the unique indexes below: Postgres (like SQLite)
-//    treats NULLs as distinct in a unique index, so two DailyLogs with
-//    (NULL, same date) would both be allowed.
+// 1. `userId` scopes every row to its owner and is a real foreign key to User,
+//    so deleting an account removes its data. It stays non-null everywhere it
+//    takes part in a unique index: Postgres treats NULLs as distinct there, so
+//    a nullable userId would let two DailyLogs share (NULL, same date).
+//
+//    FoodItem is the deliberate exception — see its comment.
 //
 // 2. Exercise metadata is NEVER stored here. `WorkoutExercise.exerciseSlug` is a
 //    foreign key into the @bryllim/workout-guide package; name, muscle, equipment
@@ -40,6 +41,7 @@ model Workout {
   updatedAt     DateTime  @updatedAt
 
   exercises WorkoutExercise[]
+  user      User              @relation(fields: [userId], references: [id])
 
   @@index([userId, date])
 }
@@ -101,8 +103,15 @@ model ExerciseSet {
 ///  ESTIMATE — cooked dish, inherently variable; rounded on purpose
 ///  USER     — entered by hand via the custom-food form
 model FoodItem {
-  id       String  @id @default(cuid())
-  userId   String  @default("local")
+  id String @id @default(cuid())
+
+  /// NULL means a seeded reference food that EVERY user can see and log.
+  /// Non-null means a custom food that only that user sees. This is why the
+  /// column is nullable while the others are not: the seeded catalogue has no
+  /// owner, and copying 166 rows per signup would be waste and drift.
+  /// Safe to be nullable here because userId takes part in no unique index.
+  userId   String?
+  user     User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
   name     String
   brand    String?
   /// STAPLE | PACKAGED | HOME_COOKED | FASTFOOD | CUSTOM
@@ -141,7 +150,8 @@ model FoodItem {
 
 model DailyLog {
   id     String   @id @default(cuid())
-  userId String   @default("local")
+  userId String
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// Calendar day, stored as UTC midnight.
   date   DateTime
   notes  String?
@@ -173,7 +183,8 @@ model LogEntry {
 /// Single row keyed by userId. Holds macro targets and unit preference.
 model Settings {
   id     String @id @default(cuid())
-  userId String @unique @default("local")
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   calorieTarget Float?
   proteinTarget Float?
@@ -204,4 +215,87 @@ model Settings {
   mealPattern   String  @default("THREE")
 
   updatedAt DateTime @updatedAt
+}
+
+/// ---------------------------------------------------------------- auth
+///
+/// Managed by Better Auth (email + password). Field names and the lowercase
+/// @@map table names are what Better Auth expects — do not rename them.
+/// Password hashes live on Account.password, hashed with scrypt by the library.
+
+model User {
+  id            String   @id
+  name          String
+  email         String
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+
+  // Application data, removed with the account.
+  workouts  Workout[]
+  dailyLogs DailyLog[]
+  foods     FoodItem[]
+  settings  Settings?
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id String @id
+
+  /// Required by Better Auth 1.7+ — identifies the credential issuer, e.g.
+  /// "local:credential" for email+password. Verified against the library's own
+  /// getAuthTables() output; the standalone @better-auth/cli is stuck at 1.4
+  /// and omits this field, which fails signup with "Unknown argument `issuer`".
+  issuer String
+
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
 }

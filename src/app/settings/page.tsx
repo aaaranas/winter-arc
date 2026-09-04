@@ -8,7 +8,8 @@ import { updateSettings } from '@/lib/actions/settings';
 import { getSettings } from '@/lib/queries';
 import { getAttributionSummary } from '@/lib/exercises';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
+import { visibleFoods } from '@/lib/food-scope';
 import Link from 'next/link';
 
 // This page reads the live database on every request. Without this it would
@@ -22,7 +23,7 @@ export default async function SettingsPage() {
     getSettings(),
     db.foodItem.groupBy({
       by: ['sourceType'],
-      where: { userId: currentUserId(), archived: false },
+      where: visibleFoods(await requireUserId()),
       _count: true,
     }),
   ]);

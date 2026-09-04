@@ -6,7 +6,8 @@ import { MacroSummary } from './macro-summary';
 import { LogEntryList } from './log-entry-list';
 import { FoodSearchSheet, type FoodOption } from './food-search-sheet';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
+import { visibleFoods } from '@/lib/food-scope';
 import { getDayTotals, getRecentFoods, getSettings } from '@/lib/queries';
 import { dayKey, friendlyDay, fromDayKey } from '@/lib/dates';
 
@@ -21,7 +22,7 @@ export async function DayLogView({ day }: { day: string }) {
     getDayTotals(day),
     getSettings(),
     db.foodItem.findMany({
-      where: { userId: currentUserId(), archived: false },
+      where: visibleFoods(await requireUserId()),
       orderBy: { name: 'asc' },
     }),
     getRecentFoods(),

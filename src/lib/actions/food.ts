@@ -2,12 +2,12 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
 import { fromDayKey } from '@/lib/dates';
 
 /** Get or create the DailyLog for a day. */
 async function getOrCreateDailyLog(dayKey: string) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
   const date = fromDayKey(dayKey);
 
   return db.dailyLog.upsert({
@@ -73,7 +73,7 @@ export async function createCustomFood(formData: FormData) {
 
   const food = await db.foodItem.create({
     data: {
-      userId: currentUserId(),
+      userId: await requireUserId(),
       name,
       brand,
       category: 'CUSTOM',

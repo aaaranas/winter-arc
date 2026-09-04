@@ -6,7 +6,8 @@ import { BodyMetricsForm } from '@/components/food/body-metrics-form';
 import { ApplyPlanButton } from '@/components/food/apply-plan-button';
 import { SourceBadge } from '@/components/food/source-badge';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
+import { visibleFoods } from '@/lib/food-scope';
 import { getSettings } from '@/lib/queries';
 import {
   computeMacroPlan,
@@ -27,7 +28,7 @@ export default async function PlanPage() {
   const [settings, foods] = await Promise.all([
     getSettings(),
     db.foodItem.findMany({
-      where: { userId: currentUserId(), archived: false },
+      where: visibleFoods(await requireUserId()),
       orderBy: { name: 'asc' },
     }),
   ]);

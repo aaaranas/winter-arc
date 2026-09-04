@@ -30,6 +30,45 @@ Then open http://localhost:3000.
 | `npm run db:reset` | drop and rebuild from migrations, then re-seed |
 | `npm run check:guides` | verify routine slugs + guide coverage against the package |
 
+## Accounts
+
+Email + password, via [Better Auth](https://better-auth.com), stored in your own
+Postgres — no third-party identity provider. Password hashes (scrypt), sessions
+and accounts sit in tables beside the workout data.
+
+**Data is per-user.** Workouts, sets, PRs, food logs, body metrics and settings
+are scoped to the signed-in account; two people using the same deployment never
+see each other's training. The exceptions are deliberate and shared:
+
+| shared by everyone | private to each account |
+|---|---|
+| the 302 exercises, routines and form guides (they come from the npm package and code, not the database) | workouts, sets, PRs |
+| the 166 seeded reference foods (`FoodItem.userId IS NULL`) | food logs, custom foods, body metrics, targets |
+
+Enforcement is in two places on purpose. `src/proxy.ts` redirects signed-out
+visitors cheaply, checking only that a session cookie exists. The real boundary
+is `requireUserId()` in every page and server action — it resolves the actual
+session, cannot be fooled by a forged cookie, and covers server-action POSTs
+that never pass through a matched route.
+
+### Email verification is currently OFF
+
+Winter Arc is deployed on a `.vercel.app` subdomain, which cannot be verified as
+a sending domain with any email provider — so verification mail would reach
+nobody but the owner of the sending key, and every friend's signup would
+dead-end. Signup therefore creates a usable account immediately.
+
+The trade-off: someone can register an address they do not own. Acceptable for a
+known group; not for a public app. Password reset is also unavailable, and the
+"Forgot?" link hides itself when no mail provider is configured rather than
+leading somewhere broken.
+
+To turn verification back on once you own a domain: verify it with Resend, set
+`RESEND_API_KEY` and `EMAIL_FROM`, flip `requireEmailVerification` and
+`sendOnSignUp` to `true` in `src/lib/auth.ts`, and send new signups to
+`/verify-email` in `src/components/auth/auth-form.tsx`. That route and its
+resend button are kept for exactly this.
+
 ## What it does
 
 **Workouts**
@@ -57,7 +96,11 @@ scripts/
   generate-icons.mjs         PWA icons, drawn from pixel maths
 src/
   app/                   /  ·  /workout/[id]  ·  /history  ·  /exercises
-                         /food  ·  /food/[day]  ·  /settings
+                         /food  ·  /food/[day]  ·  /settings  ·  /plan
+                         /sign-in  ·  /sign-up  ·  /verify-email
+                         /forgot-password  ·  /reset-password
+                         api/auth/[...all]    Better Auth endpoints
+  proxy.ts               signed-out redirect (was middleware.ts before Next 16)
     sw.ts                service worker source (bundled to public/sw.js)
     manifest.ts          /manifest.webmanifest
   components/
@@ -70,6 +113,11 @@ src/
                          lower-body · glutes · core · conditioning)
     routines.ts          the four splits and their days
     nutrition.ts         BMR/TDEE/macro maths and meal suggestions
+    auth.ts              Better Auth config (email + password)
+    auth-client.ts       browser-side auth
+    user.ts              requireUserId() — the real security boundary
+    food-scope.ts        which foods a user may see
+    mailer.ts            pluggable email; logs to console when unconfigured
     db.ts                Prisma client (lazy; @prisma/adapter-pg)
     queries.ts           read helpers        actions/  writes (server actions)
   stores/

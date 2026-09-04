@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/db';
-import { currentUserId } from '@/lib/user';
+import { requireUserId } from '@/lib/user';
 
 /** Empty means "no value", which is different from a value of zero. */
 function optionalNumber(formData: FormData, key: string): number | null {
@@ -17,7 +17,7 @@ function text(formData: FormData, key: string, fallback: string): string {
 }
 
 export async function updateSettings(formData: FormData) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
 
   const data = {
     calorieTarget: optionalNumber(formData, 'calorieTarget'),
@@ -41,7 +41,7 @@ export async function updateSettings(formData: FormData) {
 
 /** Body metrics and preferences that drive the macro plan. */
 export async function updateBodyMetrics(formData: FormData) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
 
   const sexRaw = (formData.get('sex') as string | null)?.trim();
 
@@ -76,7 +76,7 @@ export async function applyPlanAsTargets(targets: {
   carbs: number;
   fat: number;
 }) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
 
   const data = {
     calorieTarget: targets.calories,
@@ -98,7 +98,7 @@ export async function applyPlanAsTargets(targets: {
 }
 
 export async function setActiveRoutine(routineKey: string | null) {
-  const userId = currentUserId();
+  const userId = await requireUserId();
 
   await db.settings.upsert({
     where: { userId },

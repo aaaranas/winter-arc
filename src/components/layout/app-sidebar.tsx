@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { NAV_ITEMS, isActive } from './nav-items';
 import { ThemeToggle } from './theme-toggle';
+import { SignOutButton } from '@/components/auth/sign-out-button';
 import { Logo } from './logo';
 
 /**
@@ -15,7 +16,7 @@ import { Logo } from './logo';
  * navigation to the left edge gives the content somewhere to sit and lets the
  * main area use the width it has.
  */
-export function AppSidebar() {
+export function AppSidebar({ userName }: { userName?: string | null }) {
   const pathname = usePathname();
 
   return (
@@ -51,9 +52,16 @@ export function AppSidebar() {
         </ul>
       </nav>
 
-      <div className="flex items-center justify-between border-t px-5 py-3">
-        <span className="text-xs text-muted-foreground">Theme</span>
-        <ThemeToggle />
+      <div className="space-y-1 border-t px-3 py-3">
+        {userName ? (
+          <p className="truncate px-2 text-xs text-muted-foreground" title={userName}>
+            {userName}
+          </p>
+        ) : null}
+        <div className="flex items-center justify-between">
+          <SignOutButton />
+          <ThemeToggle />
+        </div>
       </div>
     </aside>
   );
