@@ -82,6 +82,7 @@ resend button are kept for exactly this.
 - Any workout renders to a PNG for stories and feeds: `Story` (1080×1920) or `Square` (1080×1080), transparent or solid. The transparent variant overlays your own photo the way Strava's route cards do.
 - Generated server-side with `next/og`, shared through the Web Share API's file support so it opens the real system share sheet; desktop falls back to a download.
 - Only exercises with logged sets appear — a routine day is created with its full plan, and listing untouched exercises would advertise work that was not done.
+- **Every** performed exercise fits: row type scales down and the list splits into two columns rather than truncating with "+N more". `src/lib/share-card-layout.ts` does the arithmetic, since Satori renders server-side with no layout engine to measure against.
 
 **Macros**
 - Enter height, weight, age and activity, and get a macro target from Mifflin-St Jeor → TDEE → goal adjustment. One button copies it into the daily targets the food log tracks against.
@@ -119,6 +120,7 @@ src/
     routines.ts          the four splits and their days
     nutrition.ts         BMR/TDEE/macro maths and meal suggestions
     share-card.ts        the numbers behind a share image (ownership-checked)
+    share-card-layout.ts fits every exercise into the card without truncating
     auth.ts              Better Auth config (email + password)
     auth-client.ts       browser-side auth
     user.ts              requireUserId() — the real security boundary
