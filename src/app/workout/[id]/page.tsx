@@ -12,6 +12,7 @@ import {
   DeleteWorkoutButton,
   FinishWorkoutButton,
 } from '@/components/workout/workout-actions';
+import { ShareWorkoutDialog } from '@/components/workout/share-workout-dialog';
 import { getPersonalRecords, getPrSetIds, getSettings, getWorkout } from '@/lib/queries';
 import { getExercise, getFrameUrls } from '@/lib/exercises';
 import { EXERCISE_GUIDES } from '@/lib/exercise-guides';
@@ -50,7 +51,12 @@ export default async function WorkoutPage({ params }: PageProps<'/workout/[id]'>
           `${totalSets} ${totalSets === 1 ? 'set' : 'sets'}`,
           ...(done ? ['finished'] : []),
         ].join(' · ')}
-        action={<DeleteWorkoutButton workoutId={workout.id} />}
+        action={
+          <div className="flex items-center gap-1">
+            <ShareWorkoutDialog workoutId={workout.id} />
+            <DeleteWorkoutButton workoutId={workout.id} />
+          </div>
+        }
       />
 
       <div className="space-y-4">

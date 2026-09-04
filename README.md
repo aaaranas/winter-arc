@@ -78,6 +78,11 @@ resend button are kept for exactly this.
 - Personal records, computed from your logged sets rather than stored separately — so deleting a set correctly hands the record back to the runner-up. Beating one shows a toast immediately and badges the set.
 - How-to steps for **all 302 exercises**, alongside their three illustration frames. Reachable two ways: the book icon beside an exercise while logging, and by tapping any card in the Exercises tab.
 
+**Sharing**
+- Any workout renders to a PNG for stories and feeds: `Story` (1080×1920) or `Square` (1080×1080), transparent or solid. The transparent variant overlays your own photo the way Strava's route cards do.
+- Generated server-side with `next/og`, shared through the Web Share API's file support so it opens the real system share sheet; desktop falls back to a download.
+- Only exercises with logged sets appear — a routine day is created with its full plan, and listing untouched exercises would advertise work that was not done.
+
 **Macros**
 - Enter height, weight, age and activity, and get a macro target from Mifflin-St Jeor → TDEE → goal adjustment. One button copies it into the daily targets the food log tracks against.
 - Meal suggestions for OMAD, two meals or three, built from the foods actually in your database.
@@ -113,6 +118,7 @@ src/
                          lower-body · glutes · core · conditioning)
     routines.ts          the four splits and their days
     nutrition.ts         BMR/TDEE/macro maths and meal suggestions
+    share-card.ts        the numbers behind a share image (ownership-checked)
     auth.ts              Better Auth config (email + password)
     auth-client.ts       browser-side auth
     user.ts              requireUserId() — the real security boundary
