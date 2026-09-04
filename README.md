@@ -101,12 +101,19 @@ break on a serverless host. Set these in the Vercel dashboard before the first
 deploy:
 
 ```
-DATABASE_URL=postgres://USER:PASSWORD@pooled.db.prisma.io:5432/postgres?sslmode=require
+DATABASE_URL=postgres://USER:PASSWORD@db.prisma.io:5432/postgres?sslmode=verify-full
 ```
 
-Use the **pooled** endpoint (`pooled.db.prisma.io`) in production. Serverless
-invocations scale out horizontally, and a pool in front of the database is what
-stops them exhausting connections. Direct TCP (`db.prisma.io`) is fine locally.
+Get this from console.prisma.io → your database → **Connection strings**. Take
+the direct **PostgreSQL/TCP** string, not the `prisma+postgres://…?api_key=…`
+one — `@prisma/adapter-pg` wraps node-postgres, which cannot parse that
+protocol. If a pooled endpoint (`pooled.db.prisma.io`) is offered, prefer it in
+production so concurrent serverless invocations share connections.
+
+**Use `sslmode=verify-full`, not `require`.** node-postgres currently treats
+`require` as `verify-full`, but pg v9 will switch it to libpq semantics —
+encrypted but *unverified*, which silently drops MITM protection on an upgrade.
+Being explicit pins the strong behaviour and removes the runtime warning.
 
 Apply migrations against the hosted database before the first deploy:
 
