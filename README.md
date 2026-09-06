@@ -30,6 +30,26 @@ Then open http://localhost:3000.
 | `npm run db:reset` | drop and rebuild from migrations, then re-seed |
 | `npm run check:guides` | verify routine slugs + guide coverage against the package |
 
+## Mobile
+
+Zoom is locked (`maximum-scale=1, user-scalable=no` in the `viewport` export in
+`src/app/layout.tsx`) so the installed PWA behaves like an app rather than a
+page. That is normally an accessibility anti-pattern — pinch-zoom is how people
+with low vision cope — and it is only acceptable here because this is a private
+app for a handful of known people. **Delete those two lines if that ever stops
+being true.**
+
+Two limits worth knowing: iOS Safari has ignored `user-scalable=no` since
+iOS 10, so it mainly takes effect on Android; and it does not clear a zoom level
+the browser has already stored for the origin, which has to be reset once on the
+device.
+
+Layout is verified to fit without zooming at 320px, 360px and 375px on every
+screen — no page-level sideways scroll and no unclipped overflow. The only
+horizontal scrolling is inside the filter chip rows on `/exercises`, which is
+deliberate: wrapping 20 muscles and 17 equipment types would push the exercise
+grid off the screen.
+
 ## Accounts
 
 Email + password, via [Better Auth](https://better-auth.com), stored in your own

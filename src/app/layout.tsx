@@ -41,6 +41,26 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+
+  /**
+   * Zoom is locked so the installed app behaves like an app rather than a page.
+   *
+   * This is normally an accessibility anti-pattern — pinch-zoom is how people
+   * with low vision cope with small text — and it was deliberately left off at
+   * first for that reason. It is enabled here because this is a private app for
+   * one person and his friends, he asked for it explicitly, and the layout has
+   * been measured to fit without zooming at 375px.
+   *
+   * Two honest limits:
+   *  - iOS Safari has ignored `user-scalable=no` since iOS 10, so pinch-zoom
+   *    still works there. This mainly takes effect on Android.
+   *  - It does not clear a zoom level the browser has already stored for this
+   *    origin. That has to be reset once on the device.
+   *
+   * If anyone ever needs to zoom, delete these two lines first.
+   */
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default async function RootLayout({ children }: LayoutProps<'/'>) {
