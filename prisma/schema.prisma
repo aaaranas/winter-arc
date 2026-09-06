@@ -178,6 +178,34 @@ model LogEntry {
   @@index([foodItemId])
 }
 
+/// ------------------------------------------------------------ body weight
+
+/// One reading per calendar day.
+///
+/// Settings.weightKg holds a single number, which is enough to compute a macro
+/// plan once but cannot answer "is the plan working". The Plan screen tells you
+/// to adjust from what the scale actually does over two or three weeks — this
+/// is what makes that possible.
+///
+/// Unique on (userId, date) so re-weighing on the same day corrects the reading
+/// instead of appending a second one.
+model BodyWeightEntry {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Calendar day, stored as UTC midnight.
+  date     DateTime
+  weightKg Float
+  note     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
 /// ---------------------------------------------------------------- settings
 
 /// Single row keyed by userId. Holds macro targets and unit preference.
@@ -236,10 +264,11 @@ model User {
   accounts Account[]
 
   // Application data, removed with the account.
-  workouts  Workout[]
-  dailyLogs DailyLog[]
-  foods     FoodItem[]
-  settings  Settings?
+  workouts    Workout[]
+  dailyLogs   DailyLog[]
+  foods       FoodItem[]
+  settings    Settings?
+  bodyWeights BodyWeightEntry[]
 
   @@unique([email])
   @@map("user")

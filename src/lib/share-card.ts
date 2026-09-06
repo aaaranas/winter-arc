@@ -43,10 +43,18 @@ export async function getShareCardData(
 
   if (!workout) return null;
 
-  // Personal bests across this user's whole history, to mark which of today's
-  // sets were records.
+  // Personal bests, to mark which of today's sets were records. Scoped to the
+  // exercises in THIS workout — the all-time best for a lift you did not do
+  // today cannot change what this card says, and loading them made the query
+  // grow with every session ever logged.
+  const slugs = [...new Set(workout.exercises.map((we) => we.exerciseSlug))];
   const allSets = await db.exerciseSet.findMany({
-    where: { workoutExercise: { workout: { userId } } },
+    where: {
+      workoutExercise: {
+        exerciseSlug: { in: slugs },
+        workout: { userId },
+      },
+    },
     include: { workoutExercise: { select: { exerciseSlug: true } } },
   });
 

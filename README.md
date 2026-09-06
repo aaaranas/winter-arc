@@ -104,6 +104,12 @@ resend button are kept for exactly this.
 - Only exercises with logged sets appear — a routine day is created with its full plan, and listing untouched exercises would advertise work that was not done.
 - **Every** performed exercise fits: row type scales down and the list splits into two columns rather than truncating with "+N more". `src/lib/share-card-layout.ts` does the arithmetic, since Satori renders server-side with no layout engine to measure against.
 
+**Progress and offline**
+- **Sets survive no signal.** Logging while offline writes to an IndexedDB outbox and shows the set immediately; `OfflineSync` replays the queue when the connection returns and only removes an item once the server confirms it. Gyms are the worst place for a signal and the only place this app is used.
+- **Weight over time**, with the seven-day average as the headline rather than today's reading — daily weight swings a kilo on water alone. The macro plan is built from that trend when there is one, so it follows what the scale actually does.
+- **Per-exercise progression** at `/progress`: one point per session (its best set), ranked by estimated 1RM for weighted work, reps for bodyweight, time for holds.
+- **Progressive overload prefill.** The logger seeds from your last session with that exercise and offers a one-tap `+2.5 kg`, so nothing has to be recalled between sets.
+
 **Macros**
 - Enter height, weight, age and activity, and get a macro target from Mifflin-St Jeor → TDEE → goal adjustment. One button copies it into the daily targets the food log tracks against.
 - Meal suggestions for OMAD, two meals or three, built from the foods actually in your database.
@@ -141,6 +147,11 @@ src/
     nutrition.ts         BMR/TDEE/macro maths and meal suggestions
     share-card.ts        the numbers behind a share image (ownership-checked)
     share-card-layout.ts fits every exercise into the card without truncating
+    offline/outbox.ts    IndexedDB queue for sets logged with no connection
+  stores/
+    pending-sets.ts      reactive mirror of the outbox
+  components/charts/
+    sparkline.tsx        inline SVG trend line (currentColor, themes for free)
     auth.ts              Better Auth config (email + password)
     auth-client.ts       browser-side auth
     user.ts              requireUserId() — the real security boundary
@@ -169,6 +180,26 @@ Two conventions worth knowing:
   replacing `currentUserId()` in `src/lib/user.ts`. It is non-null because
   Postgres treats NULLs as distinct in unique indexes, which would let
   `@@unique([userId, date])` pass duplicate `DailyLog` rows for one day.
+
+## Local database gotchas
+
+`prisma dev` serves **one** database under every name — `winterarc`,
+`template1`, `postgres` and any database you create all show identical
+contents. That breaks `prisma migrate dev`, because Prisma's shadow database
+*is* the main database and every migration dies on
+`relation "Workout" already exists`.
+
+So local schema changes do not use `migrate dev`. Generate the migration
+offline, then apply it:
+
+```powershell
+npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script
+```
+
+Save that as `prisma/migrations/<timestamp>_<name>/migration.sql`, apply it to
+the local database, and run `npx prisma generate`. Production is a real Postgres
+with real separate databases, so `npx prisma migrate deploy` works there
+normally.
 
 ## Deploying to Vercel
 

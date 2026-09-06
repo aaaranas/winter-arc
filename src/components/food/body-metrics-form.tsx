@@ -20,7 +20,6 @@ export function BodyMetricsForm({
 }: {
   defaults: {
     heightCm: number | null;
-    weightKg: number | null;
     age: number | null;
     sex: string | null;
     activityLevel: string;
@@ -40,20 +39,13 @@ export function BodyMetricsForm({
       }
       className="space-y-5"
     >
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-3 gap-3">
         <Field
           id="heightCm"
           label="Height"
           unit="cm"
           defaultValue={defaults.heightCm}
           placeholder="170"
-        />
-        <Field
-          id="weightKg"
-          label="Weight"
-          unit="kg"
-          defaultValue={defaults.weightKg}
-          placeholder="70"
         />
         <Field id="age" label="Age" unit="yrs" defaultValue={defaults.age} placeholder="30" />
 
@@ -73,7 +65,8 @@ export function BodyMetricsForm({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Sex is used only by the BMR equation, which has different constants for
+        Weight is logged in the card above, where it builds a trend the plan
+        follows. Sex is used only by the BMR equation, which has different constants for
         men and women. Leave it unset and a midpoint is used — the plan still
         works, it is just less precise.
       </p>

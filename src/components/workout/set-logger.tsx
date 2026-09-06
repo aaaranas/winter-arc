@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { Plus, Trash2, Trophy } from 'lucide-react';
+import { friendlyDay } from '@/lib/dates';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { addSet, deleteSet } from '@/lib/actions/workouts';
@@ -9,6 +10,8 @@ import { setFieldsFor, type ExerciseType } from '@/lib/exercises';
 import { formatDuration } from '@/lib/dates';
 import { num } from '@/lib/format';
 import { useRestTimer } from '@/stores/rest-timer';
+import { usePendingSets, pendingForExercise } from '@/stores/pending-sets';
+import { CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -54,6 +57,7 @@ export function SetLogger({
   prSetIds,
   /** Best e1RM / reps / duration logged for this exercise before today's sets. */
   currentBest,
+  lastTime,
 }: {
   workoutExerciseId: string;
   workoutId: string;
@@ -67,17 +71,36 @@ export function SetLogger({
   targetReps: string | null;
   prSetIds: string[];
   currentBest: { e1rm: number | null; reps: number | null; durationSec: number | null } | null;
+  /** Top set from the last session that included this exercise, if any. */
+  lastTime: {
+    weight: number | null;
+    reps: number | null;
+    unit: string;
+    date: string;
+  } | null;
 }) {
   const fields = setFieldsFor(exerciseType);
   const last = sets[sets.length - 1];
+
+  // Prefill from this workout's previous set when there is one, otherwise from
+  // the last session that included this exercise. Empty boxes mid-workout mean
+  // recalling numbers from memory between sets, which is exactly when nobody
+  // wants to think.
+  const seed = last ?? lastTime;
   const [pending, startTransition] = useTransition();
   const startRest = useRestTimer((s) => s.start);
+  const queueSet = usePendingSets((s) => s.queue);
+  const queuedAll = usePendingSets((s) => s.pending);
+  const queued = pendingForExercise(queuedAll, workoutExerciseId);
 
-  const [reps, setReps] = useState(last?.reps?.toString() ?? '');
-  const [weight, setWeight] = useState(last?.weight?.toString() ?? '');
+  const [reps, setReps] = useState(seed?.reps?.toString() ?? '');
+  const [weight, setWeight] = useState(seed?.weight?.toString() ?? '');
   const [duration, setDuration] = useState(last?.durationSec?.toString() ?? '');
   const [distance, setDistance] = useState(last?.distanceM?.toString() ?? '');
   const [rpe, setRpe] = useState('');
+
+  // The smallest plate jump most gyms can actually make.
+  const increment = defaultUnit === 'lb' ? 5 : 2.5;
 
   const parse = (v: string) => {
     const n = Number(v);
@@ -110,14 +133,39 @@ export function SetLogger({
     const isPr = beatsBest(payload, currentBest);
 
     startTransition(async () => {
-      await addSet(workoutExerciseId, workoutId, payload);
-      setRpe('');
-
-      if (isPr) {
-        toast.success(`New PR — ${exerciseName}`, {
-          description: describeValues(payload, defaultUnit),
+      // Offline, or the write failed: keep the set in a durable queue rather
+      // than losing it. OfflineSync replays the queue when the connection is
+      // back. Losing a set because a gym has no signal is the worst thing this
+      // app could do.
+      const saveOffline = async () => {
+        await queueSet({
+          workoutExerciseId,
+          workoutId,
+          exerciseName,
+          values: payload,
         });
+        toast.success('Saved offline', {
+          description: 'It will sync when you are back online.',
+        });
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await saveOffline();
+      } else {
+        try {
+          await addSet(workoutExerciseId, workoutId, payload);
+          if (isPr) {
+            toast.success(`New PR — ${exerciseName}`, {
+              description: describeValues(payload, defaultUnit),
+            });
+          }
+        } catch {
+          // navigator.onLine lies on captive wifi, so a throw is the real test.
+          await saveOffline();
+        }
       }
+
+      setRpe('');
 
       if (restAfterSet && restTimerSec > 0) {
         startRest(restTimerSec, `${exerciseName} · set ${sets.length + 1}`);
@@ -133,6 +181,14 @@ export function SetLogger({
         <p className="text-xs text-muted-foreground">
           Target: {targetSets} × {targetReps ?? '—'}
           {sets.length > 0 ? ` · ${sets.length} logged` : ''}
+        </p>
+      ) : null}
+
+      {lastTime && lastTime.weight !== null ? (
+        <p className="text-xs text-muted-foreground">
+          Last time: {num(lastTime.weight)} {lastTime.unit}
+          {lastTime.reps !== null ? ` × ${lastTime.reps}` : ''} ·{' '}
+          {friendlyDay(new Date(lastTime.date))}
         </p>
       ) : null}
 
@@ -180,9 +236,51 @@ export function SetLogger({
         </ol>
       ) : null}
 
+      {queued.length > 0 ? (
+        <ol className="space-y-1">
+          {queued.map((item, i) => (
+            <li
+              key={item.id}
+              className="flex items-center gap-3 rounded-md px-2 py-1.5 text-sm text-muted-foreground"
+            >
+              <span className="w-5 text-xs tabular-nums">
+                {sets.length + i + 1}
+              </span>
+              <span className="flex-1 tabular-nums">
+                {describeValues(item.values, item.values.unit) || '—'}
+              </span>
+              <span
+                title="Saved on this device — syncs when you are back online"
+                className="flex items-center gap-1 text-[10px]"
+              >
+                <CloudOff className="size-3" />
+                offline
+              </span>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
       <div className="flex flex-wrap items-end gap-2">
         {fields.weight ? (
-          <Field label={defaultUnit} value={weight} onChange={setWeight} placeholder="0" />
+          <div className="flex items-end gap-1">
+            <Field label={defaultUnit} value={weight} onChange={setWeight} placeholder="0" />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              title={`Add ${increment} ${defaultUnit}`}
+              aria-label={`Add ${increment} ${defaultUnit}`}
+              className="h-9 px-2 text-xs tabular-nums"
+              onClick={() => {
+                const current = Number(weight);
+                const base = Number.isFinite(current) && weight.trim() !== '' ? current : 0;
+                setWeight(String(Number((base + increment).toFixed(2))));
+              }}
+            >
+              +{increment}
+            </Button>
+          </div>
         ) : null}
         {fields.reps ? (
           <Field label="reps" value={reps} onChange={setReps} placeholder="0" />

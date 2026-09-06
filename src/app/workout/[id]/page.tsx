@@ -8,12 +8,19 @@ import { ExerciseControls } from '@/components/workout/exercise-controls';
 import { SetLogger } from '@/components/workout/set-logger';
 import { AddExerciseSheet } from '@/components/workout/add-exercise-sheet';
 import { RestTimerBar } from '@/components/workout/rest-timer-bar';
+import { OfflineSync } from '@/components/workout/offline-sync';
 import {
   DeleteWorkoutButton,
   FinishWorkoutButton,
 } from '@/components/workout/workout-actions';
 import { ShareWorkoutDialog } from '@/components/workout/share-workout-dialog';
-import { getPersonalRecords, getPrSetIds, getSettings, getWorkout } from '@/lib/queries';
+import {
+  getPersonalRecords,
+  getPrSetIds,
+  getSettings,
+  getWorkout,
+  getLastPerformance,
+} from '@/lib/queries';
 import { getExercise, getFrameUrls } from '@/lib/exercises';
 import { EXERCISE_GUIDES } from '@/lib/exercise-guides';
 import { friendlyDay } from '@/lib/dates';
@@ -26,14 +33,21 @@ export const dynamic = 'force-dynamic';
 export default async function WorkoutPage({ params }: PageProps<'/workout/[id]'>) {
   const { id } = await params;
 
-  const [workout, settings, prSetIds, records] = await Promise.all([
-    getWorkout(id),
-    getSettings(),
-    getPrSetIds(),
-    getPersonalRecords(),
-  ]);
+  const [workout, settings] = await Promise.all([getWorkout(id), getSettings()]);
 
   if (!workout) notFound();
+
+  // Scope record lookups to the exercises actually on this page. Unscoped, each
+  // of these loaded the entire training history — and getPrSetIds() internally
+  // asks for the same thing, so the page fetched every set ever logged twice on
+  // a screen that gets refreshed constantly mid-workout.
+  const slugs = [...new Set(workout.exercises.map((e) => e.exerciseSlug))];
+  const [prSetIds, records, lastPerformance] = await Promise.all([
+    getPrSetIds(slugs),
+    getPersonalRecords(slugs),
+    // Excludes this workout, so "last time" means a previous session.
+    getLastPerformance(slugs, workout.id),
+  ]);
 
   const done = Boolean(workout.finishedAt);
   const totalSets = workout.exercises.reduce((n, e) => n + e.sets.length, 0);
@@ -182,6 +196,17 @@ export default async function WorkoutPage({ params }: PageProps<'/workout/[id]'>
                             }
                           : null
                       }
+                      lastTime={(() => {
+                        const prev = lastPerformance.get(we.exerciseSlug);
+                        return prev
+                          ? {
+                              weight: prev.weight,
+                              reps: prev.reps,
+                              unit: prev.unit,
+                              date: prev.date.toISOString(),
+                            }
+                          : null;
+                      })()}
                     />
                   </CardContent>
                 </Card>
@@ -198,6 +223,7 @@ export default async function WorkoutPage({ params }: PageProps<'/workout/[id]'>
         {!done ? <FinishWorkoutButton workoutId={workout.id} /> : null}
       </div>
 
+      <OfflineSync />
       <RestTimerBar />
     </div>
   );

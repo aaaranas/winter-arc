@@ -47,7 +47,9 @@ export async function updateBodyMetrics(formData: FormData) {
 
   const data = {
     heightCm: optionalNumber(formData, 'heightCm'),
-    weightKg: optionalNumber(formData, 'weightKg'),
+    // weightKg deliberately absent: it is owned by the weight card, which keeps
+    // history. Reading it from this form would blank the stored value whenever
+    // the metrics form is saved.
     age: optionalNumber(formData, 'age'),
     sex: sexRaw === 'male' || sexRaw === 'female' ? sexRaw : null,
     activityLevel: text(formData, 'activityLevel', 'moderate'),

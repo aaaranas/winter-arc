@@ -11,5 +11,16 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
+    // Point migrations at a dedicated shadow database.
+    //
+    // `prisma dev` serves its main database as `template1`, which is Postgres's
+    // blueprint for every NEW database — so Prisma's improvised shadow database
+    // was being cloned WITH the app's tables already in it, and every migration
+    // died on "relation \"Workout\" already exists". Naming the shadow
+    // explicitly stops Prisma guessing.
+    //
+    // Create it once with:
+    //   CREATE DATABASE winterarc_shadow TEMPLATE template0;
+    shadowDatabaseUrl: process.env["SHADOW_DATABASE_URL"],
   },
 });

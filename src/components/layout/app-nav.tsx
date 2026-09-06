@@ -9,9 +9,9 @@ import { NAV_ITEMS, isActive } from './nav-items';
  * Phone navigation: a fixed bottom bar, because thumbs live at the bottom of
  * the screen and this app gets used mid-set.
  *
- * Only the five primary destinations appear here; Exercises and Settings are
- * reachable from the header. Six or more targets at 390px wide get too narrow
- * to hit reliably.
+ * Only the primary destinations appear here; Exercises and Settings are
+ * reachable from the header. Six is the practical ceiling — beyond that the
+ * targets get too narrow to hit reliably at 320px.
  *
  * Hidden from lg up, where AppSidebar takes over.
  */
@@ -26,7 +26,7 @@ export function AppNav() {
         'pb-[env(safe-area-inset-bottom)]',
       )}
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {items.map(({ href, label, icon: Icon }) => {
           const active = isActive(pathname, href);
           return (

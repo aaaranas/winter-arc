@@ -8,7 +8,8 @@ import { SourceBadge } from '@/components/food/source-badge';
 import { db } from '@/lib/db';
 import { requireUserId } from '@/lib/user';
 import { visibleFoods } from '@/lib/food-scope';
-import { getSettings } from '@/lib/queries';
+import { getSettings, getWeightTrend, getPlanningWeight } from '@/lib/queries';
+import { WeightCard } from '@/components/plan/weight-card';
 import {
   computeMacroPlan,
   mealPatternLabel,
@@ -25,16 +26,20 @@ export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Plan' };
 
 export default async function PlanPage() {
-  const [settings, foods] = await Promise.all([
+  const [settings, weight, planningWeight, foods] = await Promise.all([
     getSettings(),
+    getWeightTrend(),
+    getPlanningWeight(),
     db.foodItem.findMany({
       where: visibleFoods(await requireUserId()),
       orderBy: { name: 'asc' },
     }),
   ]);
 
+  // Built from the seven-day trend when there is one, so the plan tracks what
+  // the scale is doing rather than a number typed in once.
   const plan = computeMacroPlan({
-    weightKg: settings?.weightKg ?? null,
+    weightKg: planningWeight.weightKg,
     heightCm: settings?.heightCm ?? null,
     age: settings?.age ?? null,
     sex: settings?.sex ?? null,
@@ -62,6 +67,14 @@ export default async function PlanPage() {
       />
 
       <div className="space-y-6">
+        <WeightCard
+          entries={weight.entries}
+          latest={weight.latest}
+          trend={weight.trend}
+          weeklyChange={weight.weeklyChange}
+          unit={settings?.weightUnit ?? 'kg'}
+        />
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">About you</CardTitle>
@@ -70,7 +83,6 @@ export default async function PlanPage() {
             <BodyMetricsForm
               defaults={{
                 heightCm: settings?.heightCm ?? null,
-                weightKg: settings?.weightKg ?? null,
                 age: settings?.age ?? null,
                 sex: settings?.sex ?? null,
                 activityLevel: settings?.activityLevel ?? 'moderate',
@@ -110,6 +122,14 @@ export default async function PlanPage() {
                   <Row term="BMR (Mifflin-St Jeor)" value={`${plan.bmr} kcal`} />
                   <Row term={`TDEE (${plan.activityLabel.toLowerCase()})`} value={`${plan.tdee} kcal`} />
                   <Row term="Goal" value={plan.goalLabel} />
+                  <Row
+                    term={
+                      planningWeight.source === 'trend'
+                        ? 'Weight (7-day trend)'
+                        : 'Weight (entered)'
+                    }
+                    value={`${num(planningWeight.weightKg ?? 0)} ${settings?.weightUnit ?? 'kg'}`}
+                  />
                   <Row term="Meals" value={mealPatternLabel(pattern)} />
                 </dl>
 
