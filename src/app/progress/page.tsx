@@ -40,7 +40,7 @@ export default async function ProgressPage() {
           Nothing logged yet.
         </p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="grid gap-3 lg:grid-cols-2">
           {progress.map((row) => {
             const exercise = getExercise(row.exerciseSlug);
             const values = row.points.map((p) => p.value);
@@ -48,8 +48,8 @@ export default async function ProgressPage() {
             const atBest = row.latest >= row.best;
 
             return (
-              <li key={row.exerciseSlug}>
-                <Card>
+              <li key={row.exerciseSlug} className="flex min-w-0">
+                <Card className="w-full">
                   <CardContent className="space-y-3">
                     <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
                       <div className="min-w-0">
@@ -92,6 +92,8 @@ export default async function ProgressPage() {
                         height={44}
                         className="w-full text-foreground/60"
                         ariaLabel={`${exercise?.name ?? row.exerciseSlug} over ${values.length} sessions`}
+                        startLabel={describe(values[0], row.metric, row.unit)}
+                        endLabel={describe(row.latest, row.metric, row.unit)}
                       />
                     ) : (
                       <p className="text-xs text-muted-foreground">

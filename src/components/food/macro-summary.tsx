@@ -7,7 +7,12 @@ import { cn } from '@/lib/utils';
  * Daily totals against optional targets.
  *
  * Deliberately not a chart — the brief scoped analytics out, and four numbers
- * with a hairline progress rule reads faster mid-day than any graph.
+ * with a progress bar each reads faster mid-day than any graph.
+ *
+ * The bars were originally 1px rules, which was too subtle to be read as
+ * progress at all: at a glance they looked like underlines and every row
+ * looked the same. They are still quiet, just thick enough that "how much
+ * room is left" is answered without doing the division.
  */
 export function MacroSummary({
   totals,
@@ -50,10 +55,17 @@ export function MacroSummary({
                 </span>
               </div>
               {pct !== null ? (
-                <div className="h-px w-full bg-border">
+                <div
+                  className="h-1.5 w-full overflow-hidden rounded-full bg-border/60"
+                  role="progressbar"
+                  aria-valuenow={Math.round(pct)}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={`${row.label}: ${Math.round(pct)}% of target`}
+                >
                   <div
                     className={cn(
-                      'h-px transition-all',
+                      'h-full rounded-full transition-all',
                       over ? 'bg-destructive' : 'bg-foreground',
                     )}
                     style={{ width: `${Math.min(100, pct)}%` }}

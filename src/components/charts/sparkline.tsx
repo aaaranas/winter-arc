@@ -7,6 +7,10 @@
  * most chart libraries cannot parse anyway.
  *
  * Values are oldest-first.
+ *
+ * Pass `startLabel`/`endLabel` to anchor the line. Without them the shape is
+ * normalised to fill the box, so a 2 kg drift and a 20 kg one look identical —
+ * the labels are what turn the picture back into a measurement.
  */
 export function Sparkline({
   values,
@@ -14,12 +18,16 @@ export function Sparkline({
   height = 48,
   className,
   ariaLabel,
+  startLabel,
+  endLabel,
 }: {
   values: number[];
   width?: number;
   height?: number;
   className?: string;
   ariaLabel?: string;
+  startLabel?: string;
+  endLabel?: string;
 }) {
   if (values.length < 2) return null;
 
@@ -40,7 +48,7 @@ export function Sparkline({
 
   const last = points[points.length - 1].split(',');
 
-  return (
+  const chart = (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       width={width}
@@ -62,5 +70,19 @@ export function Sparkline({
       {/* Marks where the series ends, which is the value that matters. */}
       <circle cx={last[0]} cy={last[1]} r={2.5} fill="currentColor" />
     </svg>
+  );
+
+  if (!startLabel && !endLabel) return chart;
+
+  // Labels sit under the ends rather than inside the SVG: `preserveAspectRatio`
+  // is "none", so anything drawn in there gets stretched with the line.
+  return (
+    <div className="space-y-1">
+      {chart}
+      <div className="flex items-baseline justify-between text-[11px] tabular-nums text-muted-foreground">
+        <span>{startLabel}</span>
+        <span>{endLabel}</span>
+      </div>
+    </div>
   );
 }

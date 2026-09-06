@@ -26,7 +26,7 @@ export default async function HistoryPage() {
           Nothing logged yet.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="grid gap-2 lg:grid-cols-2">
           {workouts.map((w) => {
             const names = w.exercises
               .map((e) => getExercise(e.exerciseSlug)?.name)
@@ -34,10 +34,10 @@ export default async function HistoryPage() {
             const sets = w.exercises.reduce((n, e) => n + e.sets.length, 0);
 
             return (
-              <li key={w.id}>
+              <li key={w.id} className="min-w-0">
                 <Link
                   href={`/workout/${w.id}`}
-                  className="flex items-center gap-4 rounded-lg border px-4 py-3.5 transition-colors hover:bg-accent/40"
+                  className="flex h-full items-center gap-4 rounded-lg border px-4 py-3.5 transition-colors hover:bg-accent/40"
                 >
                   <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-baseline gap-2">

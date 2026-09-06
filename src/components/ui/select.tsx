@@ -106,8 +106,20 @@ function SelectLabel({
 function SelectItem({
   className,
   children,
+  hint,
   ...props
-}: React.ComponentProps<typeof SelectPrimitive.Item>) {
+}: React.ComponentProps<typeof SelectPrimitive.Item> & {
+  /**
+   * Secondary line under the label, shown only in the dropdown.
+   *
+   * It sits outside `ItemText` on purpose: Radix clones `ItemText` into the
+   * closed trigger, and the trigger is a fixed `h-8`, so a second line put
+   * inside it gets cut off by the bottom border. Rendering it as a sibling
+   * keeps the hint where it is useful — while you are choosing — and leaves
+   * the trigger showing the label alone.
+   */
+  hint?: React.ReactNode
+}) {
   return (
     <SelectPrimitive.Item
       data-slot="select-item"
@@ -122,7 +134,16 @@ function SelectItem({
           <CheckIcon className="pointer-events-none" />
         </SelectPrimitive.ItemIndicator>
       </span>
-      <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      {hint ? (
+        // A div, not a span: the base classes style the last *span* child as a
+        // centred flex row, which would fight the stacked label/hint.
+        <div className="flex min-w-0 flex-col items-start gap-0.5 py-0.5">
+          <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+          <span className="text-xs text-muted-foreground">{hint}</span>
+        </div>
+      ) : (
+        <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+      )}
     </SelectPrimitive.Item>
   )
 }

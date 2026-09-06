@@ -157,11 +157,8 @@ function Choice({
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              <span className="flex flex-col items-start">
-                <span>{option.label}</span>
-                <span className="text-xs text-muted-foreground">{option.hint}</span>
-              </span>
+            <SelectItem key={option.value} value={option.value} hint={option.hint}>
+              {option.label}
             </SelectItem>
           ))}
         </SelectContent>
