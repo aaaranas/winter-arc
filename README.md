@@ -71,6 +71,27 @@ is `requireUserId()` in every page and server action — it resolves the actual
 session, cannot be fooled by a forged cookie, and covers server-action POSTs
 that never pass through a matched route.
 
+### Rate limiting
+
+Better Auth's limiter is on with **database** storage, not its default
+in-memory store — on Vercel each serverless invocation can be a fresh instance,
+so an in-memory counter never accumulates and a brute-force attempt walks
+straight through it.
+
+| path | limit |
+|---|---|
+| `/sign-in/email` | 5 per minute |
+| `/sign-up/email` | 3 per hour |
+| password reset | 3 per hour |
+| everything else under `/api/auth` | 120 per minute |
+
+Signup is the tightest because email verification is off: that limit is the only
+thing between a stranger with the URL and an unbounded number of accounts.
+
+Note this covers `/api/auth/*` only. Server actions (logging sets, food) are not
+rate limited — they require a session, so the exposure is a signed-in friend
+rather than the open internet.
+
 ### Email verification is currently OFF
 
 Winter Arc is deployed on a `.vercel.app` subdomain, which cannot be verified as

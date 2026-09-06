@@ -85,6 +85,39 @@ export const auth = betterAuth({
     },
   },
 
+  /**
+   * Rate limiting, stored in the database.
+   *
+   * Better Auth enables this in production by default, but its default storage
+   * is in-memory — useless on Vercel, where each serverless invocation may be a
+   * fresh instance, so a counter never accumulates and a brute-force attempt
+   * walks straight through. `database` makes the counter shared and real.
+   *
+   * The custom rules matter more than the global one. The global limit exists
+   * to stop a runaway client; the per-path limits are what actually protect a
+   * semi-public URL: guessing a friend's password, or mass-creating accounts
+   * because signup needs no email verification.
+   *
+   * Windows are in seconds.
+   */
+  rateLimit: {
+    enabled: true,
+    storage: 'database',
+    window: 60,
+    max: 120,
+    customRules: {
+      // Password guessing. Five attempts a minute is generous for a human and
+      // hopeless for a script.
+      '/sign-in/email': { window: 60, max: 5 },
+      // Account creation. Verification is off, so this is the only thing
+      // standing between a stranger and an unbounded number of accounts.
+      '/sign-up/email': { window: 3600, max: 3 },
+      // Reset mail costs money to send and is a spam vector.
+      '/request-password-reset': { window: 3600, max: 3 },
+      '/forget-password': { window: 3600, max: 3 },
+    },
+  },
+
   session: {
     // Long sessions: this is a training log opened mid-workout, and being
     // signed out at the squat rack is a genuinely bad experience.

@@ -14,8 +14,10 @@ export default function ExercisesPage() {
     //
     // The subtraction differs per breakpoint because the chrome does: phones
     // have a header plus the bottom nav bar, desktop has neither (the sidebar
-    // is beside the content, not above it).
-    <div className="flex h-[calc(100dvh-11rem)] flex-col lg:h-[calc(100dvh-6rem)]">
+    // is beside the content, not above it). It also has to leave room for the
+    // footer, which sits below this container — without that the page itself
+    // scrolls and the grid clips mid-card against the credit line.
+    <div className="flex h-[calc(100dvh-17rem)] flex-col lg:h-[calc(100dvh-11rem)]">
       <PageHeader
         title="Exercises"
         description={`${total} exercises. Tap any one for how-to steps and its illustration frames.`}

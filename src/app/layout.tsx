@@ -10,6 +10,7 @@ import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { SignOutButton } from '@/components/auth/sign-out-button';
+import { AppFooter } from '@/components/layout/app-footer';
 import { getSession } from '@/lib/user';
 import { Logo } from '@/components/layout/logo';
 
@@ -83,7 +84,10 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
           disableTransitionOnChange
         >
           {!user ? (
-            children
+            <div className="flex min-h-dvh flex-col">
+              <div className="flex-1">{children}</div>
+              <AppFooter className="px-5 pb-6 text-center text-xs text-muted-foreground" />
+            </div>
           ) : (
           <div className="flex min-h-dvh">
             <AppSidebar userName={user.name || user.email} />
@@ -121,10 +125,15 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
                 </div>
               </header>
 
-              {/* pb clears the fixed bottom bar on phones. */}
-              <main className="mx-auto w-full max-w-3xl flex-1 px-5 pb-28 lg:px-10 lg:pt-4 lg:pb-16 xl:max-w-4xl">
+              <main className="mx-auto w-full max-w-3xl flex-1 px-5 lg:px-10 lg:pt-4 xl:max-w-4xl">
                 {children}
               </main>
+
+              {/* The footer carries the padding that clears the fixed bottom
+                  bar on phones, since it is now the last thing in the column. */}
+              <div className="mx-auto w-full max-w-3xl pb-28 lg:pb-12 xl:max-w-4xl">
+                <AppFooter />
+              </div>
             </div>
           </div>
           )}

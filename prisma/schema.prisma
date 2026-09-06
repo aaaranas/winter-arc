@@ -328,3 +328,19 @@ model Verification {
   @@index([identifier])
   @@map("verification")
 }
+
+/// Rate-limit counters, written by Better Auth.
+///
+/// Storage is the database rather than memory because this runs on Vercel:
+/// serverless invocations do not share memory, so an in-memory counter resets
+/// constantly and a brute-force attempt would sail straight through it.
+///
+/// Field names are what Better Auth's adapter expects — do not rename them.
+model RateLimit {
+  id          String @id @default(cuid())
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rateLimit")
+}
