@@ -85,7 +85,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
         >
           {!user ? (
             <div className="flex min-h-dvh flex-col">
-              <div className="flex-1">{children}</div>
+              <div className="flex flex-1 flex-col">{children}</div>
               <AppFooter className="px-5 pb-6 text-center text-xs text-muted-foreground" />
             </div>
           ) : (
@@ -131,7 +131,7 @@ export default async function RootLayout({ children }: LayoutProps<'/'>) {
 
               {/* The footer carries the padding that clears the fixed bottom
                   bar on phones, since it is now the last thing in the column. */}
-              <div className="mx-auto w-full max-w-3xl pb-28 lg:pb-12 xl:max-w-4xl">
+              <div className="mx-auto w-full max-w-3xl pb-24 lg:pb-10 xl:max-w-4xl">
                 <AppFooter />
               </div>
             </div>

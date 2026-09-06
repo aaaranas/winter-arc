@@ -1,7 +1,13 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-/** Centred card used by every signed-out screen. */
+/**
+ * Centred card used by every signed-out screen.
+ *
+ * Fills the space its parent gives it rather than claiming `min-h-dvh` itself.
+ * Demanding a full viewport here made the page taller than the screen once the
+ * footer was added below, so sign-in scrolled for no reason.
+ */
 export function AuthShell({
   title,
   description,
@@ -12,7 +18,7 @@ export function AuthShell({
   children: ReactNode;
 }) {
   return (
-    <div className="flex min-h-dvh items-center justify-center px-5 py-12">
+    <div className="flex flex-1 items-center justify-center px-5 py-8">
       <div className="w-full max-w-sm space-y-6">
         <div className="space-y-2 text-center">
           <Link

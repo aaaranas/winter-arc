@@ -17,7 +17,7 @@ export default function ExercisesPage() {
     // is beside the content, not above it). It also has to leave room for the
     // footer, which sits below this container — without that the page itself
     // scrolls and the grid clips mid-card against the credit line.
-    <div className="flex h-[calc(100dvh-17rem)] flex-col lg:h-[calc(100dvh-11rem)]">
+    <div className="flex h-[calc(100dvh-15rem)] flex-col lg:h-[calc(100dvh-10rem)]">
       <PageHeader
         title="Exercises"
         description={`${total} exercises. Tap any one for how-to steps and its illustration frames.`}

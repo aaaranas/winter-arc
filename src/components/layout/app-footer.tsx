@@ -10,7 +10,7 @@ export function AppFooter({ className }: { className?: string }) {
     <footer
       className={
         className ??
-        'px-5 pt-10 pb-2 text-center text-xs text-muted-foreground'
+        'px-5 pt-6 pb-1 text-center text-xs text-muted-foreground'
       }
     >
       <p>
